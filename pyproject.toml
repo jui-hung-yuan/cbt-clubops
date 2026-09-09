@@ -1,0 +1,105 @@
+[project]
+name = "cbt-clubops"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Your Name", email = "your@email.com"},
+]
+
+dependencies = [
+    "fastapi>=0.115.8,<1.0.0",
+    "uvicorn~=0.34.0",
+    # Was arriving transitively via google-adk; web.py and scripts/run_locally.py
+    # both import it, so it has to be declared now that ADK is gone.
+    "python-dotenv>=1.0.0",
+    "google-api-python-client>=2.150.0",
+    "google-auth>=2.35.0",
+    # observability.py: attaches trace ids so the Slack failure link resolves.
+    "google-cloud-logging>=3.12.0,<4.0.0",
+    # slack.py chat.postMessage + google_auth tokeninfo.
+    "httpx>=0.27.0",
+]
+requires-python = ">=3.11,<3.14"
+
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2,<10.0.0",
+    "google-auth-oauthlib>=1.2.0",
+    # scripts/build_form_fields.py writes the application form's AcroForm
+    # fields; tests/unit/test_form_fields_pdf.py reads them back. Not a runtime
+    # dependency: the annotated PDF is checked in, so nothing parses a PDF to
+    # serve a request.
+    "pypdf>=5.0.0",
+    # scripts/preview_form_fields.py rasterises the result to check no field is
+    # too narrow. Renders without poppler, which is not installed here.
+    "pypdfium2>=4.30.0",
+    # pypdfium2 renders to a raw bitmap; Pillow turns it into a PNG to look at.
+    "pillow>=10.0.0",
+    # .pre-commit-config.yaml: lint, secret scanning and the test suite before
+    # each commit. A dev dependency so `uv sync` is the only setup step.
+    "pre-commit>=4.0.0",
+]
+
+[project.optional-dependencies]
+lint = [
+    "ruff>=0.4.6,<1.0.0",
+    "ty>=0.0.1a0",
+    "codespell>=2.2.0,<3.0.0",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "C",  # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "UP", # pyupgrade
+    "RUF", # ruff specific rules
+]
+ignore = ["E501", "C901", "B006"] # ignore line too long, too complex
+
+[tool.ruff.lint.isort]
+known-first-party = ["clubops"]
+
+[tool.ty]
+# ty is Astral's Rust-based type checker (same team as ruff/uv)
+# See: https://docs.astral.sh/ty/
+
+[tool.ty.environment]
+python-version = "3.10"
+
+[tool.ty.src]
+exclude = [".venv/**"]
+
+[tool.ty.rules]
+# Ignore common issues with third-party libraries and dynamic code patterns
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
+invalid-argument-type = "ignore"
+invalid-assignment = "ignore"
+invalid-return-type = "ignore"
+possibly-missing-attribute = "ignore"
+not-subscriptable = "ignore"
+deprecated = "ignore"
+
+[tool.codespell]
+ignore-words-list = "rouge"
+skip = "uv.lock,.venv,n8n,**/package-lock.json"
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.pytest.ini_options]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clubops"]

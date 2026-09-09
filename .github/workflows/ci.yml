@@ -1,0 +1,97 @@
+# Everything that can be checked without credentials.
+#
+# All four jobs run on every branch and every pull request, because none of them
+# can touch anything: no GCP authentication, no network calls to Slack, Gmail,
+# Sheets or PandaDoc, nothing pushed. That is a property of the codebase rather
+# than of this file — the ports in integrations/ports.py are why the suite runs
+# on fakes — and it is why CI needs no secrets at all.
+#
+# Deploying is a separate workflow with a separate trigger.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# A new push supersedes the run in progress for the same branch. The exception
+# is main, where each commit's result is worth keeping.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  # Matches the Dockerfile. pyproject allows 3.11-3.13; production runs this one.
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    name: lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+      - run: uv run --with ruff ruff check src tests scripts
+
+      # No network and no credentials. tests/conftest.py clears the config
+      # environment first, so nothing here depends on the runner either.
+      - run: uv run pytest -q
+
+  artefacts:
+    name: generated files are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      # The tagged PDF and the field manifest are checked in but generated, so
+      # they can drift from the script that makes them and nothing at runtime
+      # would notice. The build is byte-reproducible, so regenerating and
+      # diffing is an exact check.
+      #
+      # No bank details are passed, so this rebuilds the placeholder form — the
+      # same one that is committed.
+      - run: uv run python scripts/build_form_fields.py
+      - name: no drift
+        run: |
+          if ! git diff --exit-code --stat; then
+            echo "::error::Generated files are stale. Run:"
+            echo "::error::  uv run python scripts/build_form_fields.py"
+            echo "::error::...then look at the preview PNGs before committing."
+            exit 1
+          fi
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: a secret removed in a later commit is still a secret
+          # that was published, and scanning only the tip would miss it.
+          fetch-depth: 0
+
+      - name: install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+
+      # Same config as the pre-commit hook, so a commit that passed locally
+      # cannot fail here for a different reason. Allowlist and its reasons are
+      # in .gitleaks.toml.
+      - run: ./gitleaks git . --config .gitleaks.toml --redact --no-banner --verbose

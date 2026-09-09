@@ -56,7 +56,7 @@ on the other side of it.
 ## Layout
 
 ```
-src/membership/
+src/clubops/
   web.py          the private service's routes
   slack_web.py    the public relay's one route
   jobs.py         builds the real Sheets / Gmail / Slack / PandaDoc clients
@@ -84,7 +84,7 @@ with no credentials.
 uv sync
 uv run pre-commit install   # lint, secret scanning and tests before each commit
 cp .env.example .env        # then fill in the secrets
-uv run pytest               # 281 tests, no network, no credentials
+uv run pytest               # 295 tests, no network, no credentials
 ```
 
 Both flows can be run locally, and both honour `DRY_RUN=true` in `.env` — which
@@ -99,6 +99,18 @@ uv run python scripts/run_locally.py
 uv run python scripts/create_application_doc.py \
     --name "Ada Lovelace" --email ada@example.com
 ```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every branch and every pull request: ruff and
+the test suite, a check that the generated form and field manifest are not stale,
+a secret scan over the full history, `terraform fmt` and `validate`, and a Docker
+build that asserts an unconfigured image carries placeholder bank details while a
+configured one carries the real ones.
+
+It needs **no secrets and no cloud access** — the ports in
+`integrations/ports.py` are what make that possible. Deploying is a separate
+workflow with a separate trigger.
 
 ## Documentation
 
