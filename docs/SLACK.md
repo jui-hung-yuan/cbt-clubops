@@ -126,6 +126,21 @@ something always-on. On serverless it does not fit.
 > anywhere, including in a DM with themselves. That is why the service does its
 > own authorisation, which is the next section.
 
+### Where it may be run
+
+**Only in the admin channel.** Slack offers no setting for this — installing the
+app makes the command available in every channel and every DM — so the relay
+checks `channel_id` itself and refuses anywhere else.
+
+This is not access control: anyone it turns away is a channel member who could
+walk into the channel and run it there. It is what keeps the result visible. The
+link is posted to the `response_url`, which points wherever the command was
+typed, so a run from a DM would create a real application document that the rest
+of the board never sees.
+
+The check happens before the membership lookup, so a command typed in the wrong
+place costs no Slack API call.
+
 ### Who is allowed to run it
 
 Membership of the admin channel. Not a list in an environment variable.
@@ -207,6 +222,7 @@ of someone doing it deliberately.
 | `dispatch_failed` | Slack could not reach the Request URL at all. Usually the relay is deployed `--no-allow-unauthenticated` and Google is returning 403 before the request arrives. |
 | Everything returns 401, signature never matches | The signing secret in Secret Manager is stale (it changes if the app is recreated), or something re-serialised the body. |
 | Only you can run the command | Everyone else is outside the admin channel. That is the design; invite them. |
+| "Run `/application-doc` in the membership admin channel" | It was typed somewhere else — another channel, or a DM. The command only works in the channel named by `SLACK_ADMIN_CHANNEL_ID`. |
 
 To see what the relay thought:
 

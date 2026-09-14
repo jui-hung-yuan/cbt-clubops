@@ -20,11 +20,14 @@ from clubops.domain.slack_command import expected_signature
 SECRET = "8f742231b10e8888abcd99yyyzzz85a5"
 BOARD_MEMBER = "U_BOARD"
 OUTSIDER = "U_GUEST"
+ADMIN_CHANNEL = "C0123456789"
+OTHER_CHANNEL = "C_SOMEWHERE_ELSE"
+A_DM = "D_PRIVATE"
 
 SETTINGS = RelaySettings(
     signing_secret=SECRET,
     bot_token="xoxb-test",
-    admin_channel_id="C0123456789",
+    admin_channel_id=ADMIN_CHANNEL,
     core_service_url="https://cbt-clubops-xyz.a.run.app",
 )
 
@@ -49,12 +52,12 @@ def client(monkeypatch):
 
 
 def _post(client, *, text="Ada Lovelace ada@example.com", user_id=BOARD_MEMBER,
-          sign=True, timestamp=None):
+          sign=True, timestamp=None, channel_id=ADMIN_CHANNEL):
     body = "&".join(
         [
             f"user_id={user_id}",
             "user_name=jui",
-            "channel_id=C0123456789",
+            f"channel_id={channel_id}",
             "response_url=https://hooks.slack.com/commands/1/2/3",
             f"text={text.replace(' ', '+').replace('@', '%40')}",
         ]
@@ -93,6 +96,38 @@ def test_a_replayed_request_is_refused_even_though_it_is_signed(client):
 
     assert response.status_code == 401
     work.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("channel", "what"), [(OTHER_CHANNEL, "another channel"), (A_DM, "a DM")]
+)
+def test_the_command_only_works_in_the_admin_channel(client, channel, what):
+    """Slack cannot scope a slash command to a channel, so this is ours to do.
+
+    Not access control — the caller here is a board member and would pass the
+    membership check. It is what keeps the in-channel reply meaningful: the link
+    is posted wherever the command was typed, so a run from ``what`` would
+    create a real document the rest of the board never sees.
+    """
+    with mock.patch.object(slack_web, "_create_and_report") as work:
+        response = _post(client, channel_id=channel)
+
+    assert response.status_code == 200
+    assert "admin channel" in response.json()["text"]
+    work.assert_not_called()
+
+
+def test_the_channel_is_checked_before_the_membership_lookup(client, monkeypatch):
+    """Cheap and local before a Slack API call, and it means a command typed in
+    the wrong place does not cost a round trip to conversations.members."""
+    def _never(*_args, **_kwargs):
+        raise AssertionError("membership was looked up for the wrong channel")
+
+    monkeypatch.setattr(slack_web, "_membership", _never)
+    response = _post(client, channel_id=OTHER_CHANNEL)
+
+    assert response.status_code == 200
+    assert "admin channel" in response.json()["text"]
 
 
 def test_someone_outside_the_admin_channel_is_refused(client):

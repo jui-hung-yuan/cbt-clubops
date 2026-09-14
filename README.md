@@ -41,7 +41,7 @@ to join:
 
 ```
 /application-doc Ada Lovelace ada@example.com   in #cbt-clubops-admin
-      │ signed by Slack, allowed by channel membership
+      │ signed by Slack, in the admin channel, by a member of it
       ▼
 Cloud Run  cbt-clubops-slack  (public, holds only Slack's tokens)
       │ ID token, runs as cbt-clubops-slack-run
@@ -70,7 +70,7 @@ src/clubops/
 tests/            unit · integration · fixtures
 scripts/          operational and build scripts
 terraform/        the deployment
-docs/             the runbook, Slack setup, background
+docs/             deploy, operations, Slack, the form, background
 ```
 
 `domain/` is pure: no I/O, no network, no framework. `integrations/` is I/O only,
@@ -84,7 +84,7 @@ with no credentials.
 uv sync
 uv run pre-commit install   # lint, secret scanning and tests before each commit
 cp .env.example .env        # then fill in the secrets
-uv run pytest               # 295 tests, no network, no credentials
+uv run pytest               # 296 tests, no network, no credentials
 ```
 
 Both flows can be run locally, and both honour `DRY_RUN=true` in `.env` — which
@@ -117,10 +117,9 @@ Cloud Run's metadata server, which does not exist on a laptop, so
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every branch and every pull request: ruff and
-the test suite, a check that the generated form and field manifest are not stale,
-a secret scan over the full history, `terraform fmt` and `validate`, and a Docker
-build that asserts an unconfigured image carries placeholder bank details while a
-configured one carries the real ones.
+the test suite, a check that the generated form and field manifest are not stale
+(the build is byte-reproducible, so it is an exact diff), and a secret scan over
+the full history.
 
 It needs **no secrets and no cloud access** — the ports in
 `integrations/ports.py` are what make that possible. Deploying is a separate

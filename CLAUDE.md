@@ -132,6 +132,10 @@ The Slack app, its tokens and who may run the command: `docs/SLACK.md`.
   environment variable. A slash command is workspace-wide once installed, so the
   check is ours to make; making it the channel means adding an officer is an
   invite, with no deploy and no second list to forget.
+- **The command is also refused outside that channel**, checked before the
+  membership lookup. Not access control — anyone it turns away could run it in
+  the channel instead — but `response_url` posts wherever the command was typed,
+  so a run from a DM would create a real document the board never sees.
 - **The relay verifies the signature over the raw body, before anything else.**
   Re-serialising the parsed form changes the bytes and nothing verifies. It
   answers within Slack's three seconds and finishes in a background task, which
@@ -176,7 +180,7 @@ Do not "simplify" these — they have been considered:
 
 ```bash
 uv sync
-uv run pytest                          # 295 tests, no network, no credentials
+uv run pytest                          # 296 tests, no network, no credentials
 uv run python scripts/run_locally.py   # honours DRY_RUN in .env
 
 uv run python scripts/build_form_fields.py     # regenerate the annotated PDF

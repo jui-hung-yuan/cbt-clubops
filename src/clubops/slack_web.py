@@ -16,8 +16,11 @@ Three rules shape the route below, all of them Slack's:
 2. **Verify the signature over the raw body.** Re-serialising the parsed form
    changes the bytes and every signature then fails.
 3. **A slash command is workspace-wide.** Installing the app does not scope it
-   to a channel: anyone in the workspace can type it anywhere. Authorisation is
-   therefore ours to do, and it is membership of the admin channel.
+   to a channel: anyone in the workspace can type it anywhere, including in a
+   DM. Both restrictions are therefore ours to make — *who* may run it is
+   membership of the admin channel, and *where* it may be run is that same
+   channel, so the reply the board relies on is never posted somewhere only one
+   person can see.
 """
 
 from __future__ import annotations
@@ -137,6 +140,26 @@ async def application_doc_command(
     user_id = form.get("user_id", "")
     user_name = form.get("user_name", "someone")
     response_url = form.get("response_url", "")
+    channel_id = form.get("channel_id", "")
+
+    # Where, before who. Slack has no per-channel scoping for slash commands —
+    # installing the app makes this one available in every channel and every DM
+    # — so the restriction has to be here.
+    #
+    # This is not access control; the membership check below is. It is what
+    # makes the in-channel reply mean something: the link goes wherever the
+    # command was typed, so a run from a DM creates a real document that the
+    # rest of the board never sees.
+    if channel_id != settings.admin_channel_id:
+        logger.warning(
+            "refused /application-doc from %s: channel %s is not the admin channel",
+            user_name,
+            channel_id or "(none)",
+        )
+        return _ephemeral(
+            "Run `/application-doc` in the membership admin channel. The link is "
+            "posted where the command is typed, and the board needs to see it."
+        )
 
     try:
         if not _membership().allows(user_id, now=time.time()):
