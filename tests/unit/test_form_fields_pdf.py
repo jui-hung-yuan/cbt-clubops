@@ -238,13 +238,27 @@ def test_the_source_form_carries_no_bank_values_at_all():
         assert value not in text, "the source must not carry values of its own"
 
 
-@pytest.mark.parametrize(
-    "marker", ["REVODEB", "DE571001", "REVOLUT", "MayankChauhan"]
-)
-def test_no_real_bank_details_are_committed(marker):
-    """The regression guard for the whole exercise. This repository is public."""
-    for path in (build_form_fields.SOURCE, build_form_fields.OUTPUT):
-        assert marker not in "".join(_all_text(path).split())
+# Any German IBAN and any BIC, not this club's in particular. A guard written
+# against the real values would have to contain them, which is the thing being
+# guarded against — and this way it also catches the next treasurer's account.
+IBAN_SHAPED = re.compile(r"DE\d{2}[\d ]{18,24}")
+BIC_SHAPED = re.compile(r"\b[A-Z]{4}DE[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b")
+
+
+@pytest.mark.parametrize("path_name", ["SOURCE", "OUTPUT"])
+def test_no_real_bank_details_are_committed(path_name):
+    """The regression guard for the whole exercise. This repository is public.
+
+    The placeholders are the only bank-shaped strings allowed in either PDF, so
+    a source regenerated from the club's original without redacting it fails
+    here rather than reaching GitHub.
+    """
+    text = _all_text(getattr(build_form_fields, path_name))
+
+    for match in IBAN_SHAPED.findall(text):
+        assert match.strip().startswith("DE00 0000"), f"a real IBAN is committed: {match[:9]}…"
+    for match in BIC_SHAPED.findall(text):
+        assert match == "XXXXDEXXXXX", f"a real BIC is committed: {match[:4]}…"
 
 
 def test_the_bank_values_come_from_the_environment(monkeypatch):

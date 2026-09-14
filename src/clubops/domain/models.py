@@ -56,7 +56,7 @@ class ClubDetails:
     person's signature — personal data, and this repository is public. The
     defaults below are deliberate placeholders, so a fresh clone builds, renders
     and passes its tests without ever holding anyone's details. Real values are
-    supplied at deploy time; see docs/RUNBOOK.md.
+    supplied at deploy time; see docs/DEPLOY.md.
     """
 
     bank_iban: str = "DE00 0000 0000 0000 0000 00"

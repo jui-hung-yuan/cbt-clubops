@@ -100,6 +100,20 @@ uv run python scripts/create_application_doc.py \
     --name "Ada Lovelace" --email ada@example.com
 ```
 
+The web server exists only because Cloud Scheduler can do nothing but make an
+HTTP request. To exercise the routes rather than the workflow:
+
+```bash
+uv run uvicorn clubops.web:app --port 8080         # the private service
+uv run uvicorn clubops.slack_web:app --port 8081   # the Slack relay
+```
+
+Each serves its own routes locally. What does not work is the hop between them:
+the relay authenticates to the private service with an ID token minted from
+Cloud Run's metadata server, which does not exist on a laptop, so
+`/slack/commands/application-doc` fails after acknowledging Slack. Call
+`/jobs/application-document` on port 8080 directly instead.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every branch and every pull request: ruff and
@@ -116,7 +130,9 @@ workflow with a separate trigger.
 
 | | |
 |---|---|
-| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Deploy, operate, and what to do when a run fails |
-| [`terraform/README.md`](terraform/README.md) | The deployment as code |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Project setup, both services, the schedule, the first run |
+| [`terraform/README.md`](terraform/README.md) | The same deployment as code — the preferred route |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Running it: calling by hand, failure modes, changing the fees |
 | [`docs/SLACK.md`](docs/SLACK.md) | The Slack app, its tokens, and who may run the command |
+| [`docs/FORM.md`](docs/FORM.md) | How the PandaDoc application form is built and placed |
 | [`docs/BACKGROUND.md`](docs/BACKGROUND.md) | Where this came from, and why a few names are odd |

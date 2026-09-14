@@ -1,0 +1,65 @@
+# Checks that run before every commit.
+#
+#   uv run pre-commit install          # once per clone — hooks do not travel with git
+#   uv run pre-commit run --all-files  # check everything, not just what is staged
+#
+# The suite is fast on purpose (about two seconds); a slow hook is a hook people
+# start bypassing with --no-verify.
+
+repos:
+  # --- Secrets ------------------------------------------------------------
+  # First, because it is the only check here whose failure cannot be undone by
+  # editing the next commit: a secret pushed to GitHub is a secret to rotate.
+  # Scans staged content only, so gitignored files never reach it.
+  # Allowlist and reasons: .gitleaks.toml
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # --- Python -------------------------------------------------------------
+  # Same ruff configuration as pyproject.toml, so the hook and `uv run ruff
+  # check src tests scripts` can never disagree.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  # --- General hygiene ----------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      # Belt and braces next to gitleaks: this one catches a key file by its
+      # header rather than by entropy.
+      - id: detect-private-key
+      # The two form PDFs are ~700KB and checked in deliberately. This stops a
+      # stray .venv or a Terraform provider binary, not those.
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  # --- Terraform and tests ------------------------------------------------
+  # Local hooks: both tools are already in the project, and pinning a mirror
+  # repo for them would be one more version to keep in step.
+  - repo: local
+    hooks:
+      - id: terraform-fmt
+        name: terraform fmt
+        entry: terraform fmt -check -recursive terraform/
+        language: system
+        files: \.tf$
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q
+        language: system
+        # The whole suite runs in under a second with no network and no
+        # credentials, which is what makes it cheap enough to run per commit.
+        types: [python]
+        pass_filenames: false
