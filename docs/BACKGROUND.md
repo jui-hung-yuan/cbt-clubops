@@ -51,10 +51,8 @@ normalisation is forgotten.
 ## The package is `clubops`, but everything in it is membership
 
 The package is named for the repository's scope, not for the one flow it
-currently holds. It was `membership` first; both it and the deployed services
-were renamed before anything was committed or applied, while renaming was still
-free. Afterwards it would have meant rewriting a public history and minting new
-service URLs.
+currently holds. It was `membership` first, and was renamed before anything was
+committed — afterwards it would have meant rewriting a public history.
 
 It is deliberately **flat**: `pipeline.py`, `jobs.py` and `web.py` sit directly
 under `clubops/`. When a second area of work arrives, the open question is
@@ -62,7 +60,11 @@ whether they move down into `clubops/membership/` beside a sibling package. That
 nesting is not built in advance, because its right shape depends on what the
 second flow turns out to share.
 
-The deployed names, for reference:
+The deployed names were chosen at the same time, before the first
+`terraform apply`, while a Cloud Run rename was still free. Afterwards it would
+mint new service URLs — cheap for the private service, whose URL only ever
+appears as a Terraform reference, and expensive for the relay, whose URL is
+typed by hand into Slack's slash-command configuration.
 
 | | |
 |---|---|
@@ -71,10 +73,16 @@ The deployed names, for reference:
 | `cbt-clubops-run`, `cbt-clubops-slack-run` | runtime identities |
 | `cbt-clubops-scheduler` | Cloud Scheduler's identity |
 
-What kept its old name is anything describing a **flow** rather than the system:
-the scheduler job `cbt-membership-drafts` and the Slack channel
-`#cbt-clubops-admin`'s predecessor. A Sergeant at Arms flow will sit beside them
-under its own name, and `cbt-membership-drafts` will still be accurate.
+The rule was that a name for the **system** becomes `clubops`, and a name for a
+**flow** stays as it is. So the Slack channel moved to `#cbt-clubops-admin` —
+it carries both flows and is the access list for the slash command — while the
+scheduler job stayed `cbt-membership-drafts`, because that job really does draft
+membership emails and a Sergeant at Arms job will sit beside it under its own
+name.
+
+The estate that predates all of this — `cbt-membership-agent`, deployed by hand
+before Terraform, and the service accounts it used — ran alongside the new one
+until a scheduled run had succeeded on `cbt-clubops`, and has been deleted.
 
 ## Why there are two Cloud Run services
 

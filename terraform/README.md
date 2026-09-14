@@ -144,20 +144,16 @@ terraform apply                               # with the real tag in tfvars
 
 Only ever needed once.
 
-### The repository you can already see
+### Do not deploy with `gcloud run deploy --source .`
 
-`cloud-run-source-deploy` in the console is not this one. `gcloud run deploy
---source .` creates it automatically, named after the service, and that is where
-the image the current `cbt-clubops` runs was pushed.
+**`gcloud run deploy --source .` and Terraform cannot both own a service.** Each
+such deploy creates a revision from its own flags, which the next
+`terraform apply` reverts. It also builds into a repository it creates for
+itself, named after the service, rather than the one above.
 
-It is deliberately not managed here, because **`gcloud run deploy --source .`
-and Terraform cannot both own a service.** Each `gcloud run deploy` creates a
-revision from its own flags, which the next `terraform apply` would revert. Once
-Terraform owns the services, building and deploying are the two separate
-commands above.
-
-Delete that repository when you delete `cbt-clubops`, not before — it
-holds the image that service is running, and that image is your rollback.
+That is how this was deployed before Terraform, and both that repository and the
+service it served have been deleted. Building and deploying are now the two
+separate commands above.
 
 ## Names
 
@@ -183,60 +179,26 @@ The service accounts carry no `-sa` suffix because every one of them ends in
 `@cbt-space.iam.gserviceaccount.com` and appears only after a `serviceAccount:`
 prefix. `-run` means a runtime identity, its absence means a caller.
 
-## The first apply: adopting, and cutting over
+## How this came to exist
 
-**Read this before running `apply` for the first time.** Two different things
-are happening, and only one of them is an import.
+Everything here was built by hand with the `gcloud` commands in
+`../docs/DEPLOY.md` before Terraform, then adopted: the secrets, the scheduler
+job, the APIs and the image repository were imported into state, and the two
+services and three service accounts were created fresh because they were
+renamed at the same time. The old estate — `cbt-membership-agent`,
+`cbt-membership-run`, `cbt-scheduler-invoker` and the `cloud-run-source-deploy`
+image repository that `gcloud run deploy --source .` had created for itself —
+ran alongside the new one until a scheduled run had succeeded on `cbt-clubops`,
+and was then deleted.
 
-**Imported**, because it exists and keeps its name: the five secrets, the
-scheduler job, the enabled APIs, the image repository. `imports.tf` has a
-commented-out block for each. Uncomment what exists, `terraform plan`, and read
-the diff — it is telling you where reality and this file disagree, which is the
-most useful plan you will ever run here.
+That is done. `terraform apply` is now an ordinary apply, and `imports.tf` has
+been removed.
 
-**Created fresh**, because it was renamed or is new: `cbt-clubops`,
-`cbt-clubops-slack`, and all three service accounts. Terraform makes these
-alongside the old `cbt-membership-agent` and `cbt-membership-run`, which it does
-not know about and will not touch.
-
-So the first apply leaves you with both, which is the point — you verify the new
-one before anything is lost.
-
-### Cutting over
-
-```bash
-# 1. Pause the schedule so nothing fires mid-cut-over.
-terraform apply -var scheduler_paused=true
-
-# 2. Prove the new private service works, dry, end to end.
-terraform apply -var dry_run=true
-gcloud scheduler jobs run cbt-membership-drafts \
-  --project cbt-space --location europe-west1
-#    ...then read the logs for cbt-clubops, not cbt-clubops.
-
-# 3. Point the Slack app at the new relay. `terraform output slack_request_url`
-#    prints the value; paste it into the slash command's Request URL, then run
-#    /application-doc in the admin channel and confirm the link comes back.
-
-# 4. Real run, schedule back on.
-terraform apply    # dry_run and scheduler_paused back to their defaults
-
-# 5. Only now, delete the old estate. Nothing references it any more.
-gcloud run services delete cbt-clubops \
-  --project cbt-space --region europe-west1
-gcloud iam service-accounts delete \
-  cbt-membership-run@cbt-space.iam.gserviceaccount.com --project cbt-space
-```
-
-Do not skip to step 5. A deleted service account email is unusable for 30 days,
-so an early deletion is the one step here with no quick undo.
-
-The old Slack Request URL keeps pointing at a service that no longer exists once
-step 5 runs, so step 3 has to happen first — that URL is the single piece of
-configuration Terraform cannot reach.
-
-Expect the plan to want to *replace* Cloud Run revisions on later applies. That
-is fine; a new revision is how Cloud Run deploys anything.
+The order is worth keeping in mind if this is ever repeated: nothing old gets
+deleted until the replacement has served a real scheduled run, the Slack slash
+command's Request URL is repointed by hand before the service behind it goes,
+and service accounts are deleted last — a deleted account's email is unusable
+for 30 days, which is the one step with no quick undo.
 
 ## Ordinary use, afterwards
 
