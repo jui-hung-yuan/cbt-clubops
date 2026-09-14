@@ -1,0 +1,34 @@
+# What `gcloud builds submit` uploads as the build context.
+#
+# Without this file gcloud uploads everything — and normally it would fall back
+# to .gitignore, but this directory is not a git repository, so there is no
+# fallback. That means 340MB, 220MB of it a .venv the image rebuilds anyway.
+#
+# The Dockerfile copies pyproject.toml, README.md, uv.lock and src/. Everything
+# below is either irrelevant to the image or actively unwanted in it.
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+build/
+
+# Never upload local secrets. .env is gitignored but gitignore is not consulted
+# here, so it has to be named explicitly.
+.env
+*.pem
+*-key.json
+credentials*.json
+
+# Not needed to build or run the service. scripts/ is kept whole (140KB) rather
+# than excluded-with-an-exception for build_form_fields.py: a negated pattern
+# fails silently — rename the file and the PDF simply is not in the context, and
+# the build breaks somewhere further along with no mention of the ignore file.
+tests/
+docs/
+n8n/
+terraform/
+.claude/
+.idea/
+.DS_Store

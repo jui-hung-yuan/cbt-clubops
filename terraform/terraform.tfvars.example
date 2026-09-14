@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+# Built and pushed separately; see README.md. Nothing exists at this path until
+# you have run the build once — the image the current service runs was pushed by
+# `gcloud run deploy --source .` to a different, auto-created repository.
+#
+# One image, both services; APP_MODULE chooses the app. Use a dated tag rather
+# than :latest, so "what is running" is answerable and a rollback is a one-line
+# revert.
+image = "europe-west1-docker.pkg.dev/cbt-space/images/clubops:2026-09-07"
+
+# The admin channel's *id*, not "#cbt-clubops-admin". Right-click the channel
+# in Slack -> View channel details -> the id is at the bottom. Whoever is in this
+# channel may run /application-doc.
+slack_admin_channel_id = "C0123456789"
+
+# For a first run against a new deployment, set both true, apply, run once by
+# hand, check the output, then set them back and apply again.
+# dry_run          = true
+# scheduler_paused = true
+
+# The guest registration sheet. Not in variables.tf: it is the club's sheet and
+# this repository is public.
+spreadsheet_id = "1AbCdEf...."

@@ -45,7 +45,7 @@ def run_membership_draft_job(trace_id: str = "") -> RunSummary:
         logger.warning(
             "club details are unset: every draft will show the placeholder IBAN "
             "and signature. Pass BANK_IBAN, BANK_BIC, BANK_NAME, BANK_OWNER and "
-            "SIGNATURE_NAME as build args — see docs/RUNBOOK.md."
+            "SIGNATURE_NAME as build args — see docs/DEPLOY.md."
         )
 
     credentials = build_credentials(settings.google, settings.scopes)

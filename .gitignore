@@ -225,3 +225,8 @@ terraform/crash.log
 **/.env
 **/.env.*
 !**/.env.example
+
+# The n8n workflow this service replaced. Kept locally as the fallback, not
+# committed: the exported JSON has the club's bank details, the treasurer's
+# name and the spreadsheet id hard-coded in its Code nodes.
+n8n/
