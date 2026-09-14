@@ -1,0 +1,30 @@
+# Secret scanning, as run by the pre-commit hook.
+#
+# The default rules are kept in full; this file only records the handful of
+# things that look like secrets and are not. Every entry needs a reason — an
+# allowlist nobody can audit is how a real secret eventually gets waved through.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+description = "Slack's own documented example signing secret, used as a test fixture."
+regexes = [
+  # tests/unit/test_slack_command.py and tests/integration/test_slack_http.py.
+  # It is the value from Slack's request-signing documentation, so it is public
+  # by construction, and the tests need a fixed key to assert a fixed HMAC.
+  '''8f742231b10e8888abcd99yyyzzz85a5''',
+]
+
+[allowlist]
+description = "Paths that never hold real credentials."
+paths = [
+  # Placeholders only; the real values live in Secret Manager. Checked in on
+  # purpose so a new board member can see which variables exist.
+  '''\.env\.example$''',
+  '''terraform\.tfvars\.example$''',
+  # Documentation quotes token *shapes* (xoxb-, xapp-) to explain which is which.
+  '''docs/SLACK\.md$''',
+]
